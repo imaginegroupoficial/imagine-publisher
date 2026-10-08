@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS settings(
 CREATE TABLE IF NOT EXISTS channels(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK(platform IN ('tiktok','instagram')),
+  platform TEXT NOT NULL CHECK(platform IN ('tiktok','instagram','youtube')),
   external_id TEXT, display_name TEXT,
   access_token_enc TEXT NOT NULL, refresh_token_enc TEXT,
   expires_at INTEGER, refresh_expires_at INTEGER,
@@ -46,5 +46,31 @@ CREATE TABLE IF NOT EXISTS deliveries(
 CREATE INDEX IF NOT EXISTS idx_deliveries_due ON deliveries(status, run_at);
 CREATE INDEX IF NOT EXISTS idx_posts_artist ON posts(artist_id, scheduled_at);
 `);
+
+// Migracao: bancos criados antes do YouTube tinham a tabela channels sem 'youtube' na regra.
+const chSql = ((db.prepare("SELECT sql FROM sqlite_master WHERE name='channels'").get() as any)?.sql || '') as string;
+if (chSql && !chSql.includes("'youtube'")) {
+  db.exec(`PRAGMA foreign_keys=OFF;
+  BEGIN;
+  CREATE TABLE channels_new(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    platform TEXT NOT NULL CHECK(platform IN ('tiktok','instagram','youtube')),
+    external_id TEXT, display_name TEXT,
+    access_token_enc TEXT NOT NULL, refresh_token_enc TEXT,
+    expires_at INTEGER, refresh_expires_at INTEGER,
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+    UNIQUE(artist_id, platform));
+  INSERT INTO channels_new(id,artist_id,platform,external_id,display_name,access_token_enc,refresh_token_enc,expires_at,refresh_expires_at,created_at,updated_at)
+    SELECT id,artist_id,platform,external_id,display_name,access_token_enc,refresh_token_enc,expires_at,refresh_expires_at,created_at,updated_at FROM channels;
+  DROP TABLE channels;
+  ALTER TABLE channels_new RENAME TO channels;
+  COMMIT;
+  PRAGMA foreign_keys=ON;`);
+}
+// Colunas novas (idempotente: ignora erro se ja existirem)
+for (const sql of ['ALTER TABLE posts ADD COLUMN yt_privacy TEXT', 'ALTER TABLE deliveries ADD COLUMN note TEXT']) {
+  try { db.exec(sql); } catch { /* ja existe */ }
+}
 
 export const now = () => Date.now();

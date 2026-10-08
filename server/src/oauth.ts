@@ -7,6 +7,7 @@ import { isConfigured } from './settings.js';
 import { baseUrl } from './util.js';
 import * as tiktok from './providers/tiktok.js';
 import * as instagram from './providers/instagram.js';
+import * as youtube from './providers/youtube.js';
 
 const router = Router();
 
@@ -24,6 +25,10 @@ const providers: Record<string, {
   instagram: {
     authUrl: instagram.authUrl,
     complete: (code, redirect) => instagram.exchangeCode(code, redirect),
+  },
+  youtube: {
+    authUrl: youtube.authUrl,
+    complete: (code, redirect) => youtube.exchangeCode(code, redirect),
   },
 };
 

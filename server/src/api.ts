@@ -143,7 +143,7 @@ router.get('/invites/:token', (req: any, res) => {
   res.json({
     artist: { name: artist.name },
     channels: listChannelsPublic(artist.id).map((c: any) => ({ platform: c.platform, display_name: c.display_name })),
-    configured: { tiktok: isConfigured('tiktok'), instagram: isConfigured('instagram') },
+    configured: { tiktok: isConfigured('tiktok'), instagram: isConfigured('instagram'), youtube: isConfigured('youtube') },
   });
 });
 
@@ -164,7 +164,7 @@ const upload = multer({
   },
 });
 
-const MODES: Record<string, string[]> = { tiktok: ['draft'], instagram: ['manual', 'direct'], youtube: ['manual'] };
+const MODES: Record<string, string[]> = { tiktok: ['draft'], instagram: ['manual', 'direct'], youtube: ['direct', 'manual'] };
 
 router.post('/posts', requireAuth, upload.single('video'), (req: any, res: any) => {
   const file = req.file;
@@ -190,6 +190,14 @@ router.post('/posts', requireAuth, upload.single('video'), (req: any, res: any) 
     }
   }
 
+  const yt = deliveries.find((d) => d.platform === 'youtube');
+  if (yt) {
+    if (!String(req.body.title || '').trim() || !String(req.body.caption || '').trim())
+      return fail(400, 'Para o YouTube, informe título e legenda.');
+    if (yt.mode === 'direct' && !getChannel(artist.id, 'youtube')) return fail(400, 'Conecte o YouTube deste artista para publicar direto.');
+  }
+  const ytPrivacy = ['public', 'unlisted', 'private'].includes(req.body.ytPrivacy) ? req.body.ytPrivacy : 'public';
+
   const scheduledAt = Number(req.body.scheduledAt) > 0 ? Number(req.body.scheduledAt) : null;
   const runAt = scheduledAt && scheduledAt > now() ? scheduledAt : now();
   const d0 = new Date(scheduledAt || now());
@@ -201,6 +209,7 @@ router.post('/posts', requireAuth, upload.single('video'), (req: any, res: any) 
       VALUES(?,?,?,?,?,?,?,?,?,?)`).run(artist.id, title, req.body.caption || null, req.body.audioName || null,
       req.body.location || null, scheduledAt, file.filename, randomToken(16), user.id, now());
     const id = Number(info.lastInsertRowid);
+    db.prepare('UPDATE posts SET yt_privacy=? WHERE id=?').run(ytPrivacy, id);
     for (const d of deliveries) {
       const auto = d.mode !== 'manual';
       db.prepare(`INSERT INTO deliveries(post_id,platform,mode,status,run_at,updated_at) VALUES(?,?,?,?,?,?)`)
@@ -223,7 +232,7 @@ function loadPosts(user: any, opts: { artistId?: number; from?: number; to?: num
     ${conds.length ? 'WHERE ' + conds.join(' AND ') : ''} ORDER BY p.created_at DESC LIMIT 300`).all(...params) as any[];
   if (!posts.length) return [];
   const ids = posts.map((p) => p.id);
-  const dels = db.prepare(`SELECT id,post_id,platform,mode,status,error,attempts,external_id FROM deliveries
+  const dels = db.prepare(`SELECT id,post_id,platform,mode,status,error,note,attempts,external_id FROM deliveries
     WHERE post_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`).all(...ids) as any[];
   return posts.map((p) => ({
     id: p.id, artist_id: p.artist_id, artist_name: p.artist_name, title: p.title, caption: p.caption,
@@ -299,7 +308,7 @@ router.post('/deliveries/:id/retry', requireAuth, (req: any, res: any) => {
   const d = ownedDelivery(req, res);
   if (!d) return;
   if (d.status !== 'failed') return res.status(400).json({ error: 'Só é possível tentar de novo uma entrega que falhou.' });
-  db.prepare(`UPDATE deliveries SET status='scheduled', run_at=?, attempts=0, error=NULL, updated_at=? WHERE id=?`).run(now(), now(), d.id);
+  db.prepare(`UPDATE deliveries SET status='scheduled', run_at=?, attempts=0, error=NULL, note=NULL, updated_at=? WHERE id=?`).run(now(), now(), d.id);
   setImmediate(() => tick().catch(() => {}));
   res.json({ ok: true });
 });

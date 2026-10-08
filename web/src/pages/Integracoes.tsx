@@ -16,7 +16,7 @@ function Redirect({ uri }: { uri: string }) {
 
 export default function Integracoes() {
   const [v, setV] = useState<any>(null);
-  const [f, setF] = useState({ tk: '', ts: '', ia: '', is: '' });
+  const [f, setF] = useState({ tk: '', ts: '', ia: '', is: '', gi: '', gs: '' });
   const [msg, setMsg] = useState('');
   useEffect(() => { api('/api/integrations').then(setV).catch(() => {}); }, []);
 
@@ -24,8 +24,8 @@ export default function Integracoes() {
     e.preventDefault(); setMsg('');
     try {
       const r = await api('/api/integrations', { method: 'PUT', json: {
-        tiktok: { client_key: f.tk, client_secret: f.ts }, instagram: { app_id: f.ia, app_secret: f.is } } });
-      setV(r); setF({ tk: '', ts: '', ia: '', is: '' }); setMsg('Salvo.');
+        tiktok: { client_key: f.tk, client_secret: f.ts }, instagram: { app_id: f.ia, app_secret: f.is }, google: { client_id: f.gi, client_secret: f.gs } } });
+      setV(r); setF({ tk: '', ts: '', ia: '', is: '', gi: '', gs: '' }); setMsg('Salvo.');
     } catch (x: any) { setMsg(x.message); }
   };
   if (!v) return <div className="empty">Carregando...</div>;
@@ -54,7 +54,15 @@ export default function Integracoes() {
         <Redirect uri={v.instagram.redirect_uri} />
       </div>
 
-      <div className="card"><h2>YouTube</h2><p className="muted">Em breve. Hoje o YouTube entra como pendência manual.</p></div>
+      <div className="card">
+        <div className="row spread"><h2>YouTube Shorts</h2><span className={`chip ${v.youtube.configured ? 'connected' : ''}`}>{v.youtube.configured ? 'configurado' : 'pendente'}</span></div>
+        <p className="muted">Use o ID do cliente e a chave secreta OAuth do projeto no Google Cloud (YouTube Data API v3 ativada). Enquanto o projeto não passar na auditoria do Google, os vídeos enviados ficam privados e você só muda a visibilidade no YouTube Studio. Com o app em modo de teste, cada conta precisa ser reconectada a cada 7 dias.</p>
+        <label>ID do cliente (Client ID)</label>
+        <input value={f.gi} onChange={(e) => setF({ ...f, gi: e.target.value })} placeholder={v.youtube.client_id || '...apps.googleusercontent.com'} autoComplete="off" />
+        <label>Chave secreta do cliente</label>
+        <input type="password" value={f.gs} onChange={(e) => setF({ ...f, gs: e.target.value })} placeholder={v.youtube.has_secret ? '•••••••• (já salvo)' : ''} autoComplete="new-password" />
+        <Redirect uri={v.youtube.redirect_uri} />
+      </div>
 
       {msg && <div className={`banner ${msg === 'Salvo.' ? 'ok' : 'bad'}`}>{msg}</div>}
       <button style={{ width: '100%', padding: 14 }}>Salvar</button>

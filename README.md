@@ -9,7 +9,8 @@ Plataforma para organizar e agendar as publicações dos artistas. O time (ou o 
 | TikTok | Rascunho | No horário marcado, o vídeo vai para a caixa de entrada do TikTok do artista. Falta só escolher o áudio e publicar no app. |
 | Instagram | Rascunho (padrão) | Vira uma pendência com vídeo e legenda prontos. Você finaliza no app, mantendo áudio oficial e sincronia com o Facebook. |
 | Instagram | Publicar direto | Opcional por post. O servidor publica o Reel pela API. Não aplica áudio oficial. |
-| YouTube | Pendência manual | Ainda sem integração por API. |
+| YouTube Shorts | Publicar direto | O servidor envia o vídeo com título e legenda (obrigatórios). Não há etapa de áudio. Enquanto o projeto do Google não passar na auditoria, o YouTube deixa o vídeo privado e o sistema avisa para mudar a visibilidade no Studio. |
+| YouTube Shorts | Pendência manual | Opcional, para finalizar no YouTube Studio. |
 
 ## Subir na VPS (comandos de uma linha)
 
@@ -47,6 +48,15 @@ O `APP_SECRET` protege as chaves das redes guardadas no banco. Se ele se perder,
 4. Em **Novo post**, suba o vídeo, escolha as redes e o horário.
 
 Enquanto os apps estiverem em modo de teste, cada conta precisa estar cadastrada como Target User (TikTok Sandbox) e como Instagram Tester (Meta).
+
+## YouTube: configurar o Google Cloud
+
+1. Em console.cloud.google.com, crie um projeto e ative a **YouTube Data API v3**.
+2. Em **Tela de consentimento OAuth**, escolha usuário Externo, preencha o nome do app e o domínio `imaginegroup.com.br`, e adicione o escopo `youtube.upload`.
+3. Em **Credenciais**, crie um **ID do cliente OAuth** do tipo Aplicativo da Web, com esta URI de redirecionamento: `https://publisher.imaginegroup.com.br/auth/youtube/callback`.
+4. Cole o ID do cliente e a chave secreta na tela **Integrações** do Imagine Publisher.
+5. Enquanto o app estiver em modo "Testing", adicione cada conta Google como usuário de teste. Nesse modo o acesso expira a cada 7 dias e precisa ser reconectado.
+6. Para os vídeos saírem públicos, o projeto precisa passar na auditoria da YouTube API (formulário "YouTube API Services - Audit and Quota Extension Form").
 
 ## Estrutura
 

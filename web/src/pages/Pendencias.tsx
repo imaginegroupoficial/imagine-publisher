@@ -31,6 +31,7 @@ function PostCard({ p, reload }: { p: any; reload: () => void }) {
       </div>
       {p.caption && <div className="caption">{p.caption}</div>}
       <div className="row" style={{ marginBottom: 6 }}>
+        {p.title && p.deliveries.some((d: any) => d.platform === 'youtube') && <button className="ghost small" onClick={() => copyText(p.title)}>Copiar título</button>}
         {p.caption && <button className="ghost small" onClick={copy}>{copied ? 'Copiado!' : 'Copiar legenda'}</button>}
         {p.has_media && <a className="btn ghost small" href={`/api/posts/${p.id}/media`}>Baixar vídeo</a>}
         <button className="danger small" onClick={remove} disabled={busy}>Excluir</button>
@@ -45,12 +46,13 @@ function PostCard({ p, reload }: { p: any; reload: () => void }) {
             </div>
             <div className="row">
               {d.status === 'awaiting_finalize' && <>
-                <a className="btn ghost small" href={APP_URL[d.platform]} target="_blank" rel="noreferrer">Abrir {PLATFORM[d.platform]}</a>
+                <a className="btn ghost small" href={d.platform === 'youtube' && d.external_id ? `https://studio.youtube.com/video/${d.external_id}/edit` : APP_URL[d.platform]} target="_blank" rel="noreferrer">Abrir {PLATFORM[d.platform]}</a>
                 <button className="ok small" disabled={busy} onClick={() => act(`/api/deliveries/${d.id}/finalize`)}>Marcar como publicado</button>
               </>}
               {d.status === 'failed' && <button className="small" disabled={busy} onClick={() => act(`/api/deliveries/${d.id}/retry`)}>Tentar de novo</button>}
             </div>
           </div>
+          {d.note && <div style={{ color: 'var(--warn)', fontSize: 13, marginTop: 6 }}>{d.note}</div>}
           {d.error && <div className="err">{d.status === 'scheduled' ? `Tentativa ${d.attempts} falhou, nova tentativa automática: ` : ''}{d.error}</div>}
         </div>
       ))}

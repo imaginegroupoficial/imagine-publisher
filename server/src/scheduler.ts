@@ -5,6 +5,7 @@ import { freshToken, getChannel } from './channels.js';
 import { mediaPath, cleanupMedia } from './media.js';
 import * as tiktok from './providers/tiktok.js';
 import * as instagram from './providers/instagram.js';
+import * as youtube from './providers/youtube.js';
 
 let running = false;
 
@@ -29,6 +30,23 @@ async function execute(d: any) {
     cleanupMedia(d.post_id);
     return;
   }
+  if (d.platform === 'youtube' && d.mode === 'direct') {
+    const file = mediaPath(d.media_file);
+    if (!file) throw new PermanentError('Arquivo de vídeo não encontrado.');
+    const { accessToken } = await freshToken(d.artist_id, 'youtube');
+    const requested = d.yt_privacy || 'public';
+    const r = await youtube.uploadShort({ accessToken, filePath: file, title: d.title || '', description: d.caption || '', privacy: requested });
+    if (r.privacy === 'private') {
+      const note = requested === 'private'
+        ? 'Enviado como privado, como escolhido. Mude a visibilidade no YouTube Studio quando quiser publicar.'
+        : 'O YouTube deixou o vídeo privado (o projeto da API ainda não passou na auditoria do Google). Abra o YouTube Studio e mude a visibilidade para publicar.';
+      db.prepare(`UPDATE deliveries SET status='awaiting_finalize', external_id=?, note=?, error=NULL, updated_at=? WHERE id=?`).run(r.videoId, note, now(), d.id);
+    } else {
+      db.prepare(`UPDATE deliveries SET status='published', external_id=?, note=NULL, error=NULL, updated_at=? WHERE id=?`).run(r.videoId, now(), d.id);
+      cleanupMedia(d.post_id);
+    }
+    return;
+  }
   throw new PermanentError(`Modo não suportado: ${d.platform}/${d.mode}`);
 }
 
@@ -48,7 +66,7 @@ export async function tick() {
   if (running) return;
   running = true;
   try {
-    const due = db.prepare(`SELECT d.*, p.artist_id, p.caption, p.media_file, p.media_token
+    const due = db.prepare(`SELECT d.*, p.artist_id, p.caption, p.title, p.yt_privacy, p.media_file, p.media_token
       FROM deliveries d JOIN posts p ON p.id=d.post_id
       WHERE d.status='scheduled' AND d.run_at<=? ORDER BY d.run_at LIMIT 20`).all(now()) as any[];
     for (const d of due) {

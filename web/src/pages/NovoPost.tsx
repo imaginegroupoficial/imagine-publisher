@@ -5,7 +5,7 @@ import { api, uploadPost } from '../api';
 const PLATS = [
   { id: 'tiktok', label: 'TikTok', modes: [['draft', 'Rascunho na caixa de entrada (escolher o áudio no app)']] },
   { id: 'instagram', label: 'Instagram', modes: [['manual', 'Rascunho: finalizar no app (áudio oficial e Facebook)'], ['direct', 'Publicar direto pela API']] },
-  { id: 'youtube', label: 'YouTube', modes: [['manual', 'Pendência manual']] },
+  { id: 'youtube', label: 'YouTube Shorts', modes: [['direct', 'Publicar direto (título e legenda obrigatórios)'], ['manual', 'Pendência manual']] },
 ];
 
 export default function NovoPost({ user }: { user: any }) {
@@ -15,11 +15,12 @@ export default function NovoPost({ user }: { user: any }) {
   const [artistId, setArtistId] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [sel, setSel] = useState<Record<string, { on: boolean; mode: string }>>({
-    tiktok: { on: false, mode: 'draft' }, instagram: { on: false, mode: 'manual' }, youtube: { on: false, mode: 'manual' },
+    tiktok: { on: false, mode: 'draft' }, instagram: { on: false, mode: 'manual' }, youtube: { on: false, mode: 'direct' },
   });
   const [f, setF] = useState({ title: '', caption: '', audioName: '', location: '' });
   const [when, setWhen] = useState<'now' | 'later'>('now');
   const [dt, setDt] = useState('');
+  const [ytPrivacy, setYtPrivacy] = useState('public');
   const [pct, setPct] = useState<number | null>(null);
   const [err, setErr] = useState('');
 
@@ -35,11 +36,13 @@ export default function NovoPost({ user }: { user: any }) {
     if (!file) return setErr('Selecione o vídeo em MP4.');
     if (!chosen.length) return setErr('Selecione ao menos uma plataforma.');
     if (when === 'later' && !dt) return setErr('Escolha a data e a hora.');
+    if (sel.youtube.on && (!f.title.trim() || !f.caption.trim())) return setErr('Para o YouTube, informe título e legenda.');
     const fd = new FormData();
     if (team) fd.append('artistId', artistId);
     fd.append('deliveries', JSON.stringify(chosen));
     Object.entries(f).forEach(([k, v]) => fd.append(k, v));
     if (when === 'later') fd.append('scheduledAt', String(new Date(dt).getTime()));
+    fd.append('ytPrivacy', ytPrivacy);
     fd.append('video', file);
     setPct(0);
     try { await uploadPost(fd, setPct); nav('/'); }
@@ -68,7 +71,7 @@ export default function NovoPost({ user }: { user: any }) {
             <input type="checkbox" style={{ width: 18 }} checked={sel[p.id].on}
               onChange={(e) => setSel({ ...sel, [p.id]: { ...sel[p.id], on: e.target.checked } })} />
             <b>{p.label}</b>
-            {(p.id === 'tiktok' || p.id === 'instagram') && (
+            {(p.id === 'tiktok' || p.id === 'instagram' || p.id === 'youtube') && (
               <span className={`chip ${connected(p.id) ? 'connected' : ''}`}>{connected(p.id) ? 'conectado' : 'não conectado'}</span>
             )}
           </label>
@@ -81,12 +84,23 @@ export default function NovoPost({ user }: { user: any }) {
               ) : <div className="muted" style={{ marginTop: 8 }}>{p.modes[0][1]}</div>}
               {p.id === 'tiktok' && !connected('tiktok') && <div className="err">Conecte o TikTok deste artista em Artistas antes de enviar.</div>}
               {p.id === 'instagram' && sel.instagram.mode === 'direct' && !connected('instagram') && <div className="err">Conecte o Instagram deste artista para publicar direto.</div>}
+              {p.id === 'youtube' && sel.youtube.mode === 'direct' && !connected('youtube') && <div className="err">Conecte o YouTube deste artista para publicar direto.</div>}
+              {p.id === 'youtube' && sel.youtube.mode === 'direct' && (
+                <>
+                  <div className="muted" style={{ marginTop: 10 }}>Visibilidade</div>
+                  <select style={{ marginTop: 6 }} value={ytPrivacy} onChange={(e) => setYtPrivacy(e.target.value)}>
+                    <option value="public">Público</option>
+                    <option value="unlisted">Não listado</option>
+                    <option value="private">Privado (fica como rascunho no Studio)</option>
+                  </select>
+                </>
+              )}
             </>
           )}
         </div>
       ))}
 
-      <label>Título (opcional, para organização)</label>
+      <label>Título (obrigatório no YouTube; nas outras redes serve só para organização)</label>
       <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Gerado automaticamente se ficar vazio" />
       <label>Legenda</label>
       <textarea value={f.caption} onChange={(e) => setF({ ...f, caption: e.target.value })} />

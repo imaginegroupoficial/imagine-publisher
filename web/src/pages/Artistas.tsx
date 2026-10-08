@@ -100,7 +100,7 @@ export default function Artistas() {
             <button className="danger small" onClick={() => removeArtist(a)}>Excluir</button>
           </div>
           <div className="row" style={{ margin: '12px 0' }}>
-            {['tiktok', 'instagram'].map((p) => {
+            {['tiktok', 'instagram', 'youtube'].map((p) => {
               const ch = a.channels.find((c: any) => c.platform === p);
               return ch ? (
                 <span key={p} className="chip connected">
@@ -109,7 +109,6 @@ export default function Artistas() {
                 </span>
               ) : <a key={p} className="chip" href={`/auth/${p}?artistId=${a.id}`}>{PLATFORM[p]}: conectar</a>;
             })}
-            <span className="chip">YouTube: em breve</span>
           </div>
           <div className="row">
             <button className="ghost small" onClick={() => invite(a)}>Copiar link de conexão</button>

@@ -19,7 +19,7 @@ export default function Connect() {
         <p className="muted">Artista: <b style={{ color: 'var(--text)' }}>{info.artist.name}</b>. Autorize cada rede para a Imagine conseguir enviar os conteúdos para você finalizar.</p>
         {params.get('ok') && <div className="banner ok">{PLATFORM[params.get('ok')!]} conectado com sucesso.</div>}
         {params.get('error') && <div className="banner bad">Não foi possível conectar: {params.get('error')}</div>}
-        {['tiktok', 'instagram'].map((p) => {
+        {['tiktok', 'instagram', 'youtube'].map((p) => {
           const ch = info.channels.find((c: any) => c.platform === p);
           return (
             <div className="card" key={p}>

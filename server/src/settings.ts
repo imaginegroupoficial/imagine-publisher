@@ -6,6 +6,8 @@ const DEFS: Record<string, { env: string }> = {
   'tiktok.client_secret': { env: 'TIKTOK_CLIENT_SECRET' },
   'instagram.app_id': { env: 'INSTAGRAM_APP_ID' },
   'instagram.app_secret': { env: 'INSTAGRAM_APP_SECRET' },
+  'google.client_id': { env: 'GOOGLE_CLIENT_ID' },
+  'google.client_secret': { env: 'GOOGLE_CLIENT_SECRET' },
 };
 
 export function getSetting(key: string): string {
@@ -28,10 +30,12 @@ export function saveIntegrations(body: any) {
   }
 }
 
-export const isConfigured = (platform: 'tiktok' | 'instagram') =>
+export const isConfigured = (platform: 'tiktok' | 'instagram' | 'youtube') =>
   platform === 'tiktok'
     ? !!(getSetting('tiktok.client_key') && getSetting('tiktok.client_secret'))
-    : !!(getSetting('instagram.app_id') && getSetting('instagram.app_secret'));
+    : platform === 'instagram'
+      ? !!(getSetting('instagram.app_id') && getSetting('instagram.app_secret'))
+      : !!(getSetting('google.client_id') && getSetting('google.client_secret'));
 
 export function integrationsView(base: string) {
   return {
@@ -47,6 +51,12 @@ export function integrationsView(base: string) {
       app_id: getSetting('instagram.app_id'),
       has_secret: !!getSetting('instagram.app_secret'),
       redirect_uri: `${base}/auth/instagram/callback`,
+    },
+    youtube: {
+      configured: isConfigured('youtube'),
+      client_id: getSetting('google.client_id'),
+      has_secret: !!getSetting('google.client_secret'),
+      redirect_uri: `${base}/auth/youtube/callback`,
     },
   };
 }

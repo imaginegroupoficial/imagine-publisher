@@ -2,6 +2,7 @@ import { db, now } from './db.js';
 import { enc, dec } from './crypto.js';
 import * as tiktok from './providers/tiktok.js';
 import * as instagram from './providers/instagram.js';
+import * as youtube from './providers/youtube.js';
 import { PermanentError } from './errors.js';
 
 export const getChannel = (artistId: number, platform: string) =>
@@ -33,7 +34,7 @@ export const removeChannel = (artistId: number, platform: string) =>
   db.prepare('DELETE FROM channels WHERE artist_id=? AND platform=?').run(artistId, platform);
 
 // Devolve um token valido, renovando se estiver perto de vencer.
-export async function freshToken(artistId: number, platform: 'tiktok' | 'instagram') {
+export async function freshToken(artistId: number, platform: 'tiktok' | 'instagram' | 'youtube') {
   const ch = getChannel(artistId, platform);
   if (!ch) throw new PermanentError(`Conta ${platform} não conectada para este artista.`);
   let access = dec(ch.access_token_enc);
@@ -49,6 +50,13 @@ export async function freshToken(artistId: number, platform: 'tiktok' | 'instagr
     if (platform === 'instagram' && ch.expires_at && ch.expires_at - t < 7 * 864e5) {
       if (ch.expires_at < t) throw new PermanentError('Acesso do Instagram expirou. Reconecte a conta.');
       const r = await instagram.refresh(access);
+      saveChannel({ artistId, platform, externalId: ch.external_id, accessToken: r.accessToken, expiresAt: r.expiresAt });
+      access = r.accessToken;
+    }
+    if (platform === 'youtube' && ch.expires_at && ch.expires_at - t < 5 * 60e3) {
+      const rt = ch.refresh_token_enc ? dec(ch.refresh_token_enc) : null;
+      if (!rt) throw new PermanentError('Acesso do YouTube expirou. Reconecte a conta.');
+      const r = await youtube.refresh(rt);
       saveChannel({ artistId, platform, externalId: ch.external_id, accessToken: r.accessToken, expiresAt: r.expiresAt });
       access = r.accessToken;
     }
